@@ -88,7 +88,10 @@ namespace Lab_2_webapi.Controllers
         {
             User addedBy = _userService.GetCurentUser(HttpContext);
             var result = _userService.Upsert(id, userPostModel, addedBy);
-            return Ok(result);
+            if (result != null)
+            { return Ok(result); }
+            else
+            { return Forbid();}
         }
 
         /// <summary>
@@ -102,10 +105,12 @@ namespace Lab_2_webapi.Controllers
         [HttpDelete("{id}")]
         public IActionResult Delete(int id)
         {
-            var result = _userService.Delete(id);
+           
+            User addedBy = _userService.GetCurentUser(HttpContext);
+            var result = _userService.Delete(id,addedBy);
             if (result == null)
             {
-                return NotFound("User with the given id not fount !");
+                return NotFound("User with the given id not found !");
             }
             return Ok(result);
         }

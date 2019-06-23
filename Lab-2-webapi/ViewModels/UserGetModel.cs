@@ -12,5 +12,6 @@ namespace Lab_2_webapi.ViewModels
         public string Email { get; set; }
         public string Token { get; set; }
         public string UserRole { get; set; }
+        public string CreatedAt { get; set; }
     }
 }

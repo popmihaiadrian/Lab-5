@@ -23,7 +23,7 @@ namespace Lab_2_webapi.Services
         User Create(UserPostModel userPostModel,User user);
         User GetCurentUser(HttpContext httpContext);
         object Upsert(int id, UserPostModel userPostModel, User addedBy);
-        object Delete(int id);
+        object Delete(int id, User addedBy);
     }
 
     public class UsersService : IUsersService
@@ -129,6 +129,7 @@ namespace Lab_2_webapi.Services
                     Email = user.Email,
                     Username = user.Username,
                     UserRole = user.UserRole.ToString(),
+                    CreatedAt=user.CreatedAt.ToString(),
                     Token = null
                 }) ;
         }
@@ -155,37 +156,50 @@ namespace Lab_2_webapi.Services
         public object Upsert(int id, UserPostModel userPostModel, User requestedBy)
         {
             var existing = context.Users.AsNoTracking().FirstOrDefault(u => u.Id == id);
+            var x=new Object();
             if (existing == null)
             {
                 User toAdd = UserPostModel.ToUser(userPostModel);
+                toAdd.Password = ComputeSha256Hash(toAdd.Password);
                 context.Users.Add(toAdd);
                 context.SaveChanges();
                 return toAdd;
             }
 
             User toUpdate = UserPostModel.ToUser(userPostModel);
-            toUpdate.CreatedAt = existing.CreatedAt;
-            toUpdate.Id = id;
-            toUpdate.Password = ComputeSha256Hash(toUpdate.Password);
-            if (requestedBy.UserRole.Equals(UserRole.User_Manager))
+            toUpdate.Password = ComputeSha256Hash(userPostModel.Password);
+            toUpdate.Id = existing.Id;
+            Boolean bool1 = requestedBy.UserRole.Equals(UserRole.User_Manager);
+            Boolean bool2 = requestedBy.CreatedAt.AddMonths(6).CompareTo(DateTime.Now) < 0;
+
+            if (requestedBy.UserRole.Equals(UserRole.User_Manager)
+                && requestedBy.CreatedAt.AddMonths(6).CompareTo(DateTime.Now) < 0 && existing.UserRole.Equals(UserRole.User_Manager) || requestedBy.UserRole.Equals(UserRole.Admin))
             {
-                toUpdate.UserRole = existing.UserRole;
+                context.Users.Update(toUpdate);
+                context.SaveChanges();
             }
-            context.Users.Update(toUpdate);
-            context.SaveChanges();
-            return toUpdate;
+            else if (existing.UserRole.Equals(UserRole.Regular))
+            {
+                context.Users.Update(toUpdate);
+                context.SaveChanges();
+            }
+            else { return null; }
+           return context.Users.FirstOrDefault(u => u.Id == id);
         }
 
-        public object Delete(int id)
+        public object Delete(int id, User requestedBy)
         {
             var existing = context.Users.FirstOrDefault(u => u.Id == id);
             if (existing == null)
             {
                 return null;
             }
-
-            context.Users.Remove(existing);
-            context.SaveChanges();
+            if (requestedBy.UserRole.Equals(UserRole.User_Manager) && requestedBy.CreatedAt.AddMonths(6) <= DateTime.Now || requestedBy.UserRole.Equals(UserRole.Admin))
+            {
+                context.Users.Remove(existing);
+                context.SaveChanges();
+            }
+            
 
             return existing;
         }
